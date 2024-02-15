@@ -10,15 +10,22 @@ GCP accounts
 Properly configured GCP credentials
 
 Installation
+
 Clone the Repository:
+
 Clone the repository to your local machine.
 
 GCP installation required
 Install gcloud supporting your machine
 Run the following commands for the setup process
+```
 ./google-cloud-sdk/install.sh
 ./google-cloud-sdk/install.sh --help
 ./google-cloud-sdk/bin/gcloud init
+
+```
+
+
 
 gcloud auth login: Authorize Google Cloud access for the gcloud CLI with Google Cloud user credentials and set the current account as active.
 
@@ -27,7 +34,7 @@ Terraform Installation Instructions
 Homebrew is a free and open-source package management system for Mac OS X. Install the official Terraform formula from the terminal.
 
 First, install the HashiCorp tap, a repository of all our Homebrew packages.
-
+```
 brew tap hashicorp/tap
 brew install hashicorp/tap/terraform
 brew update
@@ -36,9 +43,19 @@ terraform -help
 touch ~/.bashrc
 terraform -install-autocomplete
 
+```
+Open Terminal or Command Prompt: Ensure that you have GCP CLI installed and configured with the necessary permissions.
+
+Apply Changes:
+Confirm the changes to start the deployment. Pulumi will provision the resources as defined in the code.
+
+```
 Commands to run terraform
 terraform init
 terraform plan
 terraform apply
 terraform destroy
+```
 
+Cleanup
+To delete the resources, run terraform destroy. This command will remove all resources managed by Pulumi in this project.
