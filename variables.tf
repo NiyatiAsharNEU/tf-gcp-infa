@@ -13,18 +13,18 @@ variable "webapp_subnet_cidr" {
 variable "db_subnet_cidr" {
 }
 
-variable "name"{
+variable "name" {
 }
 
-variable "routing_mode"{
+variable "routing_mode" {
 }
 
-variable "webapp_subnet_name"{
+variable "webapp_subnet_name" {
 }
 
-variable "db_subnet"{
+variable "db_subnet" {
 }
 
-variable "webapp_route"{
+variable "webapp_route" {
 }
 
