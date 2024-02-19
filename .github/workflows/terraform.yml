@@ -23,7 +23,7 @@ jobs:
 
       - name: Check File Format
         id: fmt
-        run: terraform fmt
+        run: terraform fmt -check
 
       - name: Initialize terraform
         id: init
