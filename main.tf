@@ -8,7 +8,7 @@ provider "google" {
   region      = var.region
 }
 
-resource "google_compute_network" "vpc" {
+    resource "google_compute_network" "vpc" {
   for_each = toset(var.vpcs)
 
   name                            = each.key
