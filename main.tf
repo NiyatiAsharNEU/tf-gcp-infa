@@ -1,7 +1,3 @@
-variable "vpcs" {
-  default = ["csye-vpc-gcp"]
-}
-
 provider "google" {
   credentials = file(var.credentials_file)
   project     = var.project_id
@@ -9,37 +5,29 @@ provider "google" {
 }
 
 resource "google_compute_network" "vpc" {
-  for_each = toset(var.vpcs)
-
-  name                            = each.key
+  name                            = var.name
   auto_create_subnetworks         = false
-  routing_mode                    = "REGIONAL"
+  routing_mode                    = var.routing_mode
   delete_default_routes_on_create = true
 }
 
 resource "google_compute_subnetwork" "webapp_subnet" {
-  for_each = toset(var.vpcs)
-
-  name          = "webapp-${each.key}"
+  name    = var.webapp_subnet_name
   region        = var.region
-  network       = google_compute_network.vpc[each.key].self_link
+  network       = google_compute_network.vpc.self_link
   ip_cidr_range = var.webapp_subnet_cidr
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  for_each = toset(var.vpcs)
-
-  name          = "db-${each.key}"
+  name          = var.db_subnet
   region        = var.region
-  network       = google_compute_network.vpc[each.key].self_link
+  network       = google_compute_network.vpc.self_link
   ip_cidr_range = var.db_subnet_cidr
 }
 
 resource "google_compute_route" "webapp_route" {
-  for_each = toset(var.vpcs)
-
-  name             = "webapp-route-${each.key}"
-  network          = google_compute_network.vpc[each.key].name
+  name             = var.webapp_route
+  network          = google_compute_network.vpc.name
   dest_range       = "0.0.0.0/0"
   next_hop_gateway = "default-internet-gateway"
   priority         = 1000
