@@ -1,5 +1,5 @@
 variable "credentials_file" {
-  
+
 }
 
 variable "project_id" {
