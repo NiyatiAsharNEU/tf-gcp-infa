@@ -36,29 +36,132 @@ variable "firewall_name" {
 }
 
 variable "ssh_firewall_name" {
-
 }
-
 variable "vm_name" {
-
 }
 variable "vm_size" {
-
 }
-
 variable "vm_type" {
-
 }
 variable "vm_machine_type" {
-
 }
 
 variable "vm_image" {
-
 }
 variable "vm_zone" {
-
 }
 variable "vm_tags" {
+}
+variable "deletion_protection" {
+}
+variable "availability_type" {
+
+}
+variable "disk_type" {
+
+}
+variable "disk_size" {
+}
+
+variable "sql_region" {
+
+}
+variable "sql_user_name" {
+
+}
+variable "network_name" {
+
+}
+variable "sql_database_instance_name" {
+
+}
+variable "private_ip_address" {
+
+}
+variable "vpc_subnetwork" {
+
+}
+variable "sql_database_name" {
+
+}
+variable "firewall_protocol" {
+
+}
+variable "firewall_target_tags" {
+
+}
+
+variable "firewall_source_ranges" {
+
+}
+variable "ssh_firewall_protocol" {
+
+}
+variable "ssh_firewall_ports" {
+
+}
+variable "ssh_firewall_source_range" {
+
+}
+variable "ssh_firewall_target_tags" {
+
+}
+variable "webapp_route_dest_range" {
+
+}
+variable "webapp_route_next_hop_gateway" {
+
+}
+variable "webapp_route_priority" {
+
+}
+variable "webapp_route_tags" {
+
+}
+variable "default_purpose" {
+
+}
+variable "default_address_type" {
+
+}
+variable "default_prefix_length" {
+
+}
+variable "db_instance_tier" {
+
+}
+variable "vpc_auto_create_subnetworks" {
+
+}
+variable "vpc_delete_default_routes_on_create" {
+
+}
+variable "db_instance_database_version" {
+
+}
+variable "db_instance_deletion_protection_enabled" {
+
+}
+variable "db_instance_ipv4_enabled" {
+
+}
+variable "backup_configuration_enabled" {
+
+}
+variable "backup_configuration_binary_log_enabled" {
+
+}
+variable "private_vpc_connection_sevice" {
+
+}
+variable "webapp_firewall_lifecycle" {
+
+}
+variable "ssh_firewall_lifecycle" {
+}
+variable "password_length" {
+
+}
+variable "password_special" {
 
 }
