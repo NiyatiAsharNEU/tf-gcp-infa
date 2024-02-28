@@ -97,7 +97,7 @@ resource "google_compute_firewall" "webapp_firewall" {
   target_tags   = var.firewall_target_tags
 
   lifecycle {
-    create_before_destroy = var.webapp_firewall_lifecycle
+    create_before_destroy = true
   }
 }
 
@@ -114,7 +114,7 @@ resource "google_compute_firewall" "ssh_firewall" {
   target_tags   = var.ssh_firewall_target_tags
 
   lifecycle {
-    create_before_destroy = var.ssh_firewall_lifecycle
+    create_before_destroy = true
   }
 }
 
