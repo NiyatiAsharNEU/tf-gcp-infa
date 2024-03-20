@@ -1,7 +1,7 @@
 provider "google" {
-  credentials = file(var.credentials_file)
-  project     = var.project_id
-  region      = var.region
+  # credentials = file(var.credentials_file)
+  project = var.project_id
+  region  = var.region
 }
 
 resource "google_compute_network" "vpc" {
@@ -118,11 +118,29 @@ resource "google_compute_firewall" "ssh_firewall" {
   }
 }
 
+
+
+
+
+# resource "google_dns_managed_zone" "myzone" {
+#   name        = "niyatiashar"
+#   dns_name    = "niyatiashar.me."
+#   description = "GCloud DNS zones"
+# }
+
+resource "google_service_account" "service_account" {
+  account_id   = var.service_account_id
+  display_name = var.service_account_display_name
+  project      = var.project_id
+}
+
+
 resource "google_compute_instance" "default" {
   name         = var.vm_name
   machine_type = var.vm_machine_type
   zone         = var.vm_zone
   tags         = var.vm_tags
+  depends_on   = [google_service_account.service_account]
 
   boot_disk {
     initialize_params {
@@ -131,12 +149,18 @@ resource "google_compute_instance" "default" {
       type  = var.vm_type
     }
   }
-
   network_interface {
     network    = google_compute_network.vpc.self_link
     subnetwork = google_compute_subnetwork.webapp_subnet.self_link
     access_config {
+
     }
+  }
+
+  service_account {
+    email  = google_service_account.service_account.email
+    scopes = var.service_account_scopes
+
   }
 
   metadata_startup_script = <<-SCRIPT
@@ -158,6 +182,41 @@ resource "google_compute_instance" "default" {
 
   SCRIPT
 }
+
+
+resource "google_project_iam_binding" "logging_admin" {
+  project = var.project_id
+  role    = var.logging_admin_role
+
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}"
+  ]
+  depends_on = [google_service_account.service_account]
+}
+
+resource "google_project_iam_binding" "monitoring_metric_writer" {
+  project = var.project_id
+  role    = var.metric_writer_role
+
+
+  members = [
+    "serviceAccount:${google_service_account.service_account.email}"
+  ]
+  depends_on = [google_service_account.service_account]
+}
+
+
+
+resource "google_dns_record_set" "myrecord" {
+  name         = var.record_name
+  type         = var.record_type
+  ttl          = var.record_ttl
+  managed_zone = var.record_managed_zone
+  rrdatas      = [google_compute_instance.default.network_interface.0.access_config.0.nat_ip]
+}
+
+
 resource "google_sql_user" "user" {
   name     = var.sql_user_name
   instance = google_sql_database_instance.db-instance.name
