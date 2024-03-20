@@ -187,13 +187,13 @@ variable "service_account_display_name" {
 
 }
 
-variable "service_account_scopes"{
+variable "service_account_scopes" {
 
 }
 
 variable "logging_admin_role" {
-  
+
 }
 variable "metric_writer_role" {
-  
+
 }
