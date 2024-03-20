@@ -165,3 +165,35 @@ variable "password_length" {
 variable "password_special" {
 
 }
+
+variable "record_name" {
+
+}
+variable "record_type" {
+
+}
+
+variable "record_ttl" {
+
+}
+
+variable "record_managed_zone" {
+
+}
+variable "service_account_id" {
+
+}
+variable "service_account_display_name" {
+
+}
+
+variable "service_account_scopes"{
+
+}
+
+variable "logging_admin_role" {
+  
+}
+variable "metric_writer_role" {
+  
+}
