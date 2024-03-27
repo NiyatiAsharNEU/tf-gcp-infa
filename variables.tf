@@ -198,144 +198,144 @@ variable "metric_writer_role" {
 
 }
 variable "pub_sub_topic_name" {
-  
+
 }
 
 variable "message_retention_duration" {
-  
+
 }
 
 variable "pubsub_service_account" {
-  
+
 }
 
 variable "pubsub_display_name" {
-  
+
 }
 
 variable "cloudfunction_name" {
-  
+
 }
 
 variable "cloudfunction_location" {
-  
+
 }
 
 variable "cloudfunction_description" {
-  
+
 }
 
 variable "cloudfunction_runtime" {
-  
+
 }
 variable "cloudfunction_entry_point" {
-  
+
 }
 
 variable "storage_source_object" {
-  
+
 }
 
 variable "storage_source_bucket" {
-  
+
 }
 variable "trigger_region" {
-  
+
 }
 
 variable "cf_max_instance_count" {
-  
+
 }
 
 variable "cf_min_instance_count" {
-  
+
 }
 variable "cf_available_cpu" {
-  
+
 }
 variable "cf_available_memory" {
-  
+
 }
 variable "cf_timeout_seconds" {
-  
+
 }
 variable "role_invoker" {
-  
+
 }
 
 variable "role_publisher" {
-  
+
 }
 
-variable "ops_agent_account_id"{
+variable "ops_agent_account_id" {
 
 }
 
 variable "ops_agent_display_name" {
-  
+
 }
 
 variable "ops_agent_description" {
-  
+
 }
 
 variable "verify_email_retry_policy" {
-  
+
 }
 
 variable "web_url" {
-  
+
 }
 variable "mailgun_api_key" {
-  
+
 }
 
 variable "event_trigger_type" {
-  
+
 }
 variable "ops-agent-publisher-role" {
-  
+
 }
 
 variable "cloud_subscription_name" {
-  
+
 }
 variable "cs_ack_deadline_secs" {
-  
+
 }
 variable "cs_message_retention_duration" {
-  
+
 }
 variable "cs_retain_acked_messages" {
-  
+
 }
 
 variable "cs_enable_exactly_once_delivery" {
-  
+
 }
 
 variable "cs_enable_message_ordering" {
-  
+
 }
 
 variable "retry_policy_minimum_backoff" {
-  
+
 }
 variable "retry_policy_maximum_backoff" {
-  
+
 }
 
 variable "vpc_connector_name" {
-  
+
 }
 variable "vpc_connector_region" {
-  
+
 }
 
 variable "vpc_connector_ip_cidr_range" {
-  
+
 }
 
 variable "vpc_connector_machine_type" {
-  
+
 }
