@@ -339,3 +339,15 @@ variable "vpc_connector_ip_cidr_range" {
 variable "vpc_connector_machine_type" {
 
 }
+variable "mailgun_username" {
+
+}
+variable "metadata_table_name" {
+
+}
+variable "domain_name" {
+
+}
+variable "from_email" {
+
+}
