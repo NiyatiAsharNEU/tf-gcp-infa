@@ -165,6 +165,7 @@ resource "google_compute_instance" "default" {
   sudo echo "DB_DATABASE=${var.sql_database_name}" >> /opt/webapp/.env
   sudo echo "DB_HOST=${google_sql_database_instance.db-instance.private_ip_address}" >> /opt/webapp/.env
   sudo echo "PORT=8080" >> /opt/webapp/.env
+  sudo echo "NODE_ENV=prod" >> /opt/webapp/.env
   fi
 
   sudo touch /opt/text.txt
@@ -218,17 +219,23 @@ resource "google_cloudfunctions2_function" "verify_email_function" {
     available_memory      = var.cf_available_memory
     timeout_seconds       = var.cf_timeout_seconds
     service_account_email = google_service_account.pubsub_service_account.email
+    ingress_settings      = "ALLOW_INTERNAL_ONLY"
     vpc_connector         = google_vpc_access_connector.vpc_connector.self_link
     environment_variables = {
-      cf_username     = var.sql_user_name,
-      cf_password     = google_sql_user.user.password,
-      cf_database     = var.sql_database_name,
-      cf_host         = google_sql_database_instance.db-instance.private_ip_address,
-      web_url         = var.web_url,
-      mailgun_api_key = var.mailgun_api_key,
+      cf_username               = var.sql_user_name,
+      cf_password               = google_sql_user.user.password,
+      cf_database               = var.sql_database_name,
+      cf_host                   = google_sql_database_instance.db-instance.private_ip_address,
+      web_url                   = var.web_url,
+      mailgun_api_key           = var.mailgun_api_key,
+      mailgun_username          = var.mailgun_username
+      metadata_table_name       = var.metadata_table_name
+      domain_name               = var.domain_name
+      from_email                = var.from_email
+      cloudfunction_entry_point = var.cloudfunction_entry_point
     }
   }
-  depends_on = [google_pubsub_topic.verify_email_topic]
+  depends_on = [google_pubsub_topic.verify_email_topic, google_service_account.pubsub_service_account]
 
 }
 
@@ -243,15 +250,15 @@ resource "google_project_iam_binding" "invoker" {
 }
 
 
-resource "google_project_iam_binding" "publisher" {
-  project = var.project_id
-  role    = var.role_publisher
+# resource "google_project_iam_binding" "publisher" {
+#   project = var.project_id
+#   role    = var.role_publisher
 
-  members = [
-    "serviceAccount:${google_service_account.pubsub_service_account.email}"
-  ]
-  depends_on = [google_service_account.pubsub_service_account]
-}
+#   members = [
+#     "serviceAccount:${google_service_account.pubsub_service_account.email}"
+#   ]
+#   depends_on = [google_service_account.pubsub_service_account]
+# }
 
 resource "google_service_account" "ops_agent" {
   account_id   = var.ops_agent_account_id
@@ -285,11 +292,12 @@ resource "google_project_iam_binding" "monitoring_metric_writer" {
 resource "google_project_iam_binding" "ops-agent-publisher" {
   project    = var.project_id
   role       = var.ops-agent-publisher-role
-  depends_on = [google_service_account.ops_agent]
+  depends_on = [google_service_account.ops_agent, google_service_account.pubsub_service_account]
 
 
   members = [
-    "serviceAccount:${google_service_account.ops_agent.email}"
+    "serviceAccount:${google_service_account.ops_agent.email}",
+    "serviceAccount:${google_service_account.pubsub_service_account.email}"
   ]
 
 }
@@ -335,5 +343,6 @@ resource "google_vpc_access_connector" "vpc_connector" {
   ip_cidr_range = var.vpc_connector_ip_cidr_range
   network       = var.name
   machine_type  = var.vpc_connector_machine_type
+  depends_on    = [google_compute_instance.default]
 }
 
