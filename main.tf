@@ -105,7 +105,7 @@ resource "google_compute_firewall" "ssh_firewall" {
   name    = var.ssh_firewall_name
   network = google_compute_network.vpc.name
 
-  deny {
+  allow {
     protocol = var.ssh_firewall_protocol
     ports    = var.ssh_firewall_ports
   }
@@ -117,16 +117,6 @@ resource "google_compute_firewall" "ssh_firewall" {
     create_before_destroy = true
   }
 }
-
-
-
-
-
-# resource "google_dns_managed_zone" "myzone" {
-#   name        = "niyatiashar"
-#   dns_name    = "niyatiashar.me."
-#   description = "GCloud DNS zones"
-# }
 
 resource "google_service_account" "service_account" {
   account_id   = var.service_account_id
@@ -140,7 +130,8 @@ resource "google_compute_instance" "default" {
   machine_type = var.vm_machine_type
   zone         = var.vm_zone
   tags         = var.vm_tags
-  depends_on   = [google_service_account.service_account]
+  depends_on   = [google_service_account.ops_agent,google_project_iam_binding.logging_admin,google_project_iam_binding.monitoring_metric_writer,google_project_iam_binding.ops-agent-publisher]
+  allow_stopping_for_update = true
 
   boot_disk {
     initialize_params {
@@ -158,7 +149,7 @@ resource "google_compute_instance" "default" {
   }
 
   service_account {
-    email  = google_service_account.service_account.email
+    email  = google_service_account.ops_agent.email
     scopes = var.service_account_scopes
 
   }
@@ -184,15 +175,99 @@ resource "google_compute_instance" "default" {
 }
 
 
-resource "google_project_iam_binding" "logging_admin" {
+resource "google_pubsub_topic" "verify_email_topic" {
+  name                       = var.pub_sub_topic_name
+  message_retention_duration = var.message_retention_duration
+
+}
+
+resource "google_service_account" "pubsub_service_account" {
+  account_id   = var.pubsub_service_account
+  display_name = var.pubsub_display_name
+  depends_on   = [google_pubsub_topic.verify_email_topic]
+}
+
+resource "google_cloudfunctions2_function" "verify_email_function" {
+  name        = var.cloudfunction_name
+  location    = var.cloudfunction_location
+  description = var.cloudfunction_description
+
+  build_config {
+    runtime     = var.cloudfunction_runtime
+    entry_point = var.cloudfunction_entry_point
+    source {
+      storage_source {
+        object = var.storage_source_object
+        bucket = var.storage_source_bucket
+      }
+    }
+  }
+  event_trigger {
+    event_type            = var.event_trigger_type
+    pubsub_topic          = google_pubsub_topic.verify_email_topic.id
+    service_account_email = google_service_account.pubsub_service_account.email
+    trigger_region        = var.trigger_region
+    retry_policy          = var.verify_email_retry_policy
+
+  }
+
+  service_config {
+    max_instance_count    = var.cf_max_instance_count
+    min_instance_count    = var.cf_min_instance_count
+    available_cpu         = var.cf_available_cpu
+    available_memory      = var.cf_available_memory
+    timeout_seconds       = var.cf_timeout_seconds
+    service_account_email = google_service_account.pubsub_service_account.email
+    vpc_connector = google_vpc_access_connector.vpc_connector.self_link
+    environment_variables = {
+      cf_username     = var.sql_user_name,
+      cf_password     = google_sql_user.user.password,
+      cf_database     = var.sql_database_name,
+      cf_host         = google_sql_database_instance.db-instance.private_ip_address,
+      web_url         = var.web_url,
+      mailgun_api_key = var.mailgun_api_key,
+    }
+  }
+  depends_on = [google_pubsub_topic.verify_email_topic]
+
+}
+
+resource "google_project_iam_binding" "invoker" {
   project = var.project_id
-  role    = var.logging_admin_role
+  role    = var.role_invoker
+
+  members = [
+    "serviceAccount:${google_service_account.pubsub_service_account.email}"
+  ]
+  depends_on = [google_service_account.pubsub_service_account]
+}
+
+
+resource "google_project_iam_binding" "publisher" {
+  project = var.project_id
+  role    = var.role_publisher
+
+  members = [
+    "serviceAccount:${google_service_account.pubsub_service_account.email}"
+  ]
+  depends_on = [google_service_account.pubsub_service_account]
+}
+
+resource "google_service_account" "ops_agent" {
+  account_id   = var.ops_agent_account_id
+  display_name = var.ops_agent_display_name
+  description  = var.ops_agent_description
+}
+resource "google_project_iam_binding" "logging_admin" {
+  project    = var.project_id
+  role       = var.logging_admin_role
+  depends_on = [google_service_account.ops_agent]
 
 
   members = [
-    "serviceAccount:${google_service_account.service_account.email}"
+    "serviceAccount:${google_service_account.ops_agent.email}"
   ]
-  depends_on = [google_service_account.service_account]
+
 }
 
 resource "google_project_iam_binding" "monitoring_metric_writer" {
@@ -201,11 +276,23 @@ resource "google_project_iam_binding" "monitoring_metric_writer" {
 
 
   members = [
-    "serviceAccount:${google_service_account.service_account.email}"
+    "serviceAccount:${google_service_account.ops_agent.email}"
   ]
-  depends_on = [google_service_account.service_account]
+  depends_on = [google_service_account.ops_agent]
 }
 
+
+resource "google_project_iam_binding" "ops-agent-publisher" {
+  project    = var.project_id
+  role       = var.ops-agent-publisher-role
+  depends_on = [google_service_account.ops_agent]
+
+
+  members = [
+    "serviceAccount:${google_service_account.ops_agent.email}"
+  ]
+
+}
 
 
 resource "google_dns_record_set" "myrecord" {
@@ -223,10 +310,30 @@ resource "google_sql_user" "user" {
   password = random_password.password.result
 }
 
-
 resource "random_password" "password" {
   length  = var.password_length
   special = var.password_special
 }
+resource "google_pubsub_subscription" "cloud_subscription" {
+  name                         = var.cloud_subscription_name
+  topic                        = google_pubsub_topic.verify_email_topic.id
+  ack_deadline_seconds         = var.cs_ack_deadline_secs
+  message_retention_duration   = var.cs_message_retention_duration
+  retain_acked_messages        = var.cs_retain_acked_messages
+  enable_exactly_once_delivery = var.cs_enable_exactly_once_delivery
+  enable_message_ordering      = var.cs_enable_message_ordering
+  retry_policy {
+    minimum_backoff = var.retry_policy_minimum_backoff
+    maximum_backoff = var.retry_policy_maximum_backoff
 
+  }
+}
+
+resource "google_vpc_access_connector" "vpc_connector" {
+  name          = var.vpc_connector_name
+  region        = var.vpc_connector_region
+  ip_cidr_range = var.vpc_connector_ip_cidr_range
+  network       = var.name
+  machine_type  = var.vpc_connector_machine_type 
+}
 
