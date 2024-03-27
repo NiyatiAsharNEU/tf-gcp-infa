@@ -126,11 +126,11 @@ resource "google_service_account" "service_account" {
 
 
 resource "google_compute_instance" "default" {
-  name         = var.vm_name
-  machine_type = var.vm_machine_type
-  zone         = var.vm_zone
-  tags         = var.vm_tags
-  depends_on   = [google_service_account.ops_agent,google_project_iam_binding.logging_admin,google_project_iam_binding.monitoring_metric_writer,google_project_iam_binding.ops-agent-publisher]
+  name                      = var.vm_name
+  machine_type              = var.vm_machine_type
+  zone                      = var.vm_zone
+  tags                      = var.vm_tags
+  depends_on                = [google_service_account.ops_agent, google_project_iam_binding.logging_admin, google_project_iam_binding.monitoring_metric_writer, google_project_iam_binding.ops-agent-publisher]
   allow_stopping_for_update = true
 
   boot_disk {
@@ -218,7 +218,7 @@ resource "google_cloudfunctions2_function" "verify_email_function" {
     available_memory      = var.cf_available_memory
     timeout_seconds       = var.cf_timeout_seconds
     service_account_email = google_service_account.pubsub_service_account.email
-    vpc_connector = google_vpc_access_connector.vpc_connector.self_link
+    vpc_connector         = google_vpc_access_connector.vpc_connector.self_link
     environment_variables = {
       cf_username     = var.sql_user_name,
       cf_password     = google_sql_user.user.password,
@@ -334,6 +334,6 @@ resource "google_vpc_access_connector" "vpc_connector" {
   region        = var.vpc_connector_region
   ip_cidr_range = var.vpc_connector_ip_cidr_range
   network       = var.name
-  machine_type  = var.vpc_connector_machine_type 
+  machine_type  = var.vpc_connector_machine_type
 }
 

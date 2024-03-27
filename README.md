@@ -44,6 +44,8 @@ touch ~/.bashrc
 terraform -install-autocomplete
 
 ```
+
+
 Open Terminal or Command Prompt: Ensure that you have GCP CLI installed and configured with the necessary permissions.
 
 Apply Changes:
