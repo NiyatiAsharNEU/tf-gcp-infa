@@ -298,7 +298,7 @@ resource "google_cloudfunctions2_function" "verify_email_function" {
       domain_name               = var.domain_name
       from_email                = var.from_email
       cloudfunction_entry_point = var.cloudfunction_entry_point
-      pubsub_topic_name         = var.pubsub_topic_name
+      pubsub_topic_name         = var.pub_sub_topic_name
     }
   }
   depends_on = [google_pubsub_topic.verify_email_topic, google_service_account.pubsub_service_account]
