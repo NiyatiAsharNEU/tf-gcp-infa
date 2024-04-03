@@ -352,129 +352,126 @@ variable "from_email" {
 
 }
 variable "disk_autoresize" {
-  
+
 }
 variable "webapp_private_ip_google_access" {
-  
+
 }
 variable "db_subnet_private_ip_google_access" {
-  
+
 }
 variable "disk_boot" {
-  
+
 }
 variable "auto_delete" {
-  
+
 }
- variable "instance_group_manager_name" {
-   
- }
- variable "base_instance_name" {
-   
- }
- variable "group_manager_target_size" {
-   
- }
+variable "instance_group_manager_name" {
 
- variable "group_manger_port_name" {
-   
- }
- variable "group_manager_initial_delay" {
-   
- }
- variable "backend_service_name" {
-   
- }
- variable "backend_service_port_name" {
-   
- }
- variable "backend_service_protocol" {
-   
- }
+}
+variable "base_instance_name" {
 
- variable "backend_service_loadbalancing_scheme" {
-   
- }
- variable "url_map_name" {
-   
- }
- variable "ssl_certificate_name" {
-   
- }
- variable "target_https_proxy_name" {
-   
- }
- variable "global_forwarding_rule_name" {
-   
- }
- variable "global_forwarding_rule_port_range" {
-   
- }
+}
+variable "group_manager_target_size" {
 
- variable "network_admin_role" {
-   
- }
+}
 
- variable "security_admin_role" {
-   
- }
+variable "group_manger_port_name" {
 
- variable "health_check_name" {
-   
- }
- variable "health_check_timeout_sec" {
-   
- }
- variable "health_check_check_interval_sec" {
-   
- }
- variable "health_check_healthy_threshold" {
-   
- }
+}
+variable "group_manager_initial_delay" {
 
- variable "health_check_unhealthy_threshold" {
-   
- }
+}
+variable "backend_service_name" {
 
- variable "ssl_certificate_domains" {
-   
- }
- variable "health_check_request_path" {
-   
- }
+}
+variable "backend_service_port_name" {
 
- variable "health_check_port" {
-   
- }
+}
+variable "backend_service_protocol" {
 
- variable "autoscaler_name" {
-   
- }
- variable "autoscaler_max_replicas" {
-   
- }
- variable "autoscaler_min_replicas" {
-   
- }
+}
 
- variable "autoscaler_cooldown_period" {
-   
- }
- variable "autoscaler_cpu_target" {
-   
- }
+variable "backend_service_loadbalancing_scheme" {
 
- variable "db_instance_deletion_protection" {
-   
- }
- variable "pubsub_topic_name" {
-   
- }
+}
+variable "url_map_name" {
 
- variable "database_flags" {
-   
- }
+}
+variable "ssl_certificate_name" {
 
- variable "database_flags_value" {
-   
- }
+}
+variable "target_https_proxy_name" {
+
+}
+variable "global_forwarding_rule_name" {
+
+}
+variable "global_forwarding_rule_port_range" {
+
+}
+
+variable "network_admin_role" {
+
+}
+
+variable "security_admin_role" {
+
+}
+
+variable "health_check_name" {
+
+}
+variable "health_check_timeout_sec" {
+
+}
+variable "health_check_check_interval_sec" {
+
+}
+variable "health_check_healthy_threshold" {
+
+}
+
+variable "health_check_unhealthy_threshold" {
+
+}
+
+variable "ssl_certificate_domains" {
+
+}
+variable "health_check_request_path" {
+
+}
+
+variable "health_check_port" {
+
+}
+
+variable "autoscaler_name" {
+
+}
+variable "autoscaler_max_replicas" {
+
+}
+variable "autoscaler_min_replicas" {
+
+}
+
+variable "autoscaler_cooldown_period" {
+
+}
+variable "autoscaler_cpu_target" {
+
+}
+
+variable "db_instance_deletion_protection" {
+
+}
+
+variable "database_flags" {
+
+}
+
+variable "database_flags_value" {
+
+}
