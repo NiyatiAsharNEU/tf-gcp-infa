@@ -12,17 +12,19 @@ resource "google_compute_network" "vpc" {
 }
 
 resource "google_compute_subnetwork" "webapp_subnet" {
-  name          = var.webapp_subnet_name
-  region        = var.region
-  network       = google_compute_network.vpc.self_link
-  ip_cidr_range = var.webapp_subnet_cidr
+  name                     = var.webapp_subnet_name
+  region                   = var.region
+  network                  = google_compute_network.vpc.self_link
+  ip_cidr_range            = var.webapp_subnet_cidr
+  private_ip_google_access = var.webapp_private_ip_google_access
 }
 
 resource "google_compute_subnetwork" "db_subnet" {
-  name          = var.db_subnet
-  region        = var.region
-  network       = google_compute_network.vpc.self_link
-  ip_cidr_range = var.db_subnet_cidr
+  name                     = var.db_subnet
+  region                   = var.region
+  network                  = google_compute_network.vpc.self_link
+  ip_cidr_range            = var.db_subnet_cidr
+  private_ip_google_access = var.db_subnet_private_ip_google_access
 }
 
 resource "google_compute_route" "webapp_route" {
@@ -30,8 +32,8 @@ resource "google_compute_route" "webapp_route" {
   network          = google_compute_network.vpc.name
   dest_range       = var.webapp_route_dest_range
   next_hop_gateway = var.webapp_route_next_hop_gateway
-  priority         = var.webapp_route_priority
-  tags             = var.webapp_route_tags
+  //priority         = var.webapp_route_priority
+  tags = var.webapp_route_tags
 }
 
 # [START compute_internal_ip_private_access]
@@ -51,10 +53,11 @@ resource "google_sql_database" "database" {
 
 
 resource "google_sql_database_instance" "db-instance" {
-  name             = var.sql_database_instance_name
-  database_version = var.db_instance_database_version
-  region           = var.sql_region
-  depends_on       = [google_service_networking_connection.private_vpc_connection]
+  name                = var.sql_database_instance_name
+  database_version    = var.db_instance_database_version
+  region              = var.sql_region
+  depends_on          = [google_service_networking_connection.private_vpc_connection]
+  deletion_protection = var.db_instance_deletion_protection
 
 
 
@@ -63,7 +66,12 @@ resource "google_sql_database_instance" "db-instance" {
     availability_type           = var.availability_type
     disk_type                   = var.disk_type
     disk_size                   = var.disk_size
+    disk_autoresize             = var.disk_autoresize
     deletion_protection_enabled = var.db_instance_deletion_protection_enabled
+    database_flags {
+      name  = var.database_flags
+      value = var.database_flags_value
+    }
 
     ip_configuration {
       ipv4_enabled    = var.db_instance_ipv4_enabled
@@ -75,7 +83,6 @@ resource "google_sql_database_instance" "db-instance" {
       binary_log_enabled = var.backup_configuration_binary_log_enabled
     }
   }
-
 }
 
 resource "google_service_networking_connection" "private_vpc_connection" {
@@ -86,7 +93,7 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 
 resource "google_compute_firewall" "webapp_firewall" {
   name    = var.firewall_name
-  network = google_compute_network.vpc.name
+  network = google_compute_network.vpc.self_link
 
   allow {
     protocol = var.firewall_protocol
@@ -105,7 +112,7 @@ resource "google_compute_firewall" "ssh_firewall" {
   name    = var.ssh_firewall_name
   network = google_compute_network.vpc.name
 
-  allow {
+  deny {
     protocol = var.ssh_firewall_protocol
     ports    = var.ssh_firewall_ports
   }
@@ -125,20 +132,20 @@ resource "google_service_account" "service_account" {
 }
 
 
-resource "google_compute_instance" "default" {
-  name                      = var.vm_name
-  machine_type              = var.vm_machine_type
-  zone                      = var.vm_zone
-  tags                      = var.vm_tags
-  depends_on                = [google_service_account.ops_agent, google_project_iam_binding.logging_admin, google_project_iam_binding.monitoring_metric_writer, google_project_iam_binding.ops-agent-publisher]
-  allow_stopping_for_update = true
+resource "google_compute_region_instance_template" "default" {
+  name         = var.vm_name
+  machine_type = var.vm_machine_type
+  region       = var.region
+  depends_on   = [google_service_account.ops_agent, google_project_iam_binding.logging_admin, google_project_iam_binding.monitoring_metric_writer, google_project_iam_binding.ops-agent-publisher]
+  //allow_stopping_for_update = true
+  tags = [var.webapp_subnet_name]
 
-  boot_disk {
-    initialize_params {
-      image = var.vm_image
-      size  = var.vm_size
-      type  = var.vm_type
-    }
+  disk {
+    boot         = var.disk_boot
+    source_image = var.vm_image
+    auto_delete  = var.auto_delete
+    disk_size_gb = var.vm_size
+    disk_type    = var.vm_type
   }
   network_interface {
     network    = google_compute_network.vpc.self_link
@@ -151,7 +158,10 @@ resource "google_compute_instance" "default" {
   service_account {
     email  = google_service_account.ops_agent.email
     scopes = var.service_account_scopes
+  }
 
+  lifecycle {
+    create_before_destroy = true
   }
 
   metadata_startup_script = <<-SCRIPT
@@ -173,6 +183,61 @@ resource "google_compute_instance" "default" {
   sudo chmod 700 /opt/webapp/
 
   SCRIPT
+}
+
+
+resource "google_compute_region_instance_group_manager" "instance-group-manager" {
+  name               = var.instance_group_manager_name
+  base_instance_name = var.base_instance_name
+  target_size        = var.group_manager_target_size
+  region             = var.region
+  //distribution_policy_zones  = ["us-central1-a", "us-central1-f"]
+  version {
+    instance_template = google_compute_region_instance_template.default.id
+  }
+  named_port {
+    name = var.instance_group_manager_name
+    port = var.app_port
+  }
+
+  auto_healing_policies {
+    health_check      = google_compute_health_check.health-check.id
+    initial_delay_sec = var.group_manager_initial_delay
+  }
+}
+
+resource "google_compute_backend_service" "backend-service" {
+  name                  = var.backend_service_name
+  port_name             = var.backend_service_port_name
+  protocol              = var.backend_service_protocol
+  health_checks         = [google_compute_health_check.health-check.id]
+  load_balancing_scheme = var.backend_service_loadbalancing_scheme
+  backend {
+    group = google_compute_region_instance_group_manager.instance-group-manager.instance_group
+  }
+
+}
+
+resource "google_compute_url_map" "url-map" {
+  name            = var.url_map_name
+  default_service = google_compute_backend_service.backend-service.id
+
+}
+
+
+resource "google_compute_target_https_proxy" "target-https-proxy" {
+  name             = var.target_https_proxy_name
+  url_map          = google_compute_url_map.url-map.id
+  ssl_certificates = [google_compute_managed_ssl_certificate.ssl-certificate.id]
+
+}
+
+
+resource "google_compute_global_forwarding_rule" "global-forwarding-rule" {
+  name       = var.global_forwarding_rule_name
+  target     = google_compute_target_https_proxy.target-https-proxy.id
+  port_range = var.global_forwarding_rule_port_range
+
 }
 
 
@@ -233,6 +298,7 @@ resource "google_cloudfunctions2_function" "verify_email_function" {
       domain_name               = var.domain_name
       from_email                = var.from_email
       cloudfunction_entry_point = var.cloudfunction_entry_point
+      pubsub_topic_name         = var.pubsub_topic_name
     }
   }
   depends_on = [google_pubsub_topic.verify_email_topic, google_service_account.pubsub_service_account]
@@ -249,16 +315,17 @@ resource "google_project_iam_binding" "invoker" {
   depends_on = [google_service_account.pubsub_service_account]
 }
 
+resource "google_project_iam_binding" "pubsub-service-acc-invoker-binding" {
+  project = var.project_id
+  role    = var.role_invoker
 
-# resource "google_project_iam_binding" "publisher" {
-#   project = var.project_id
-#   role    = var.role_publisher
+  depends_on = [google_service_account.pubsub_service_account]
 
-#   members = [
-#     "serviceAccount:${google_service_account.pubsub_service_account.email}"
-#   ]
-#   depends_on = [google_service_account.pubsub_service_account]
-# }
+  members = [
+    "serviceAccount:${google_service_account.pubsub_service_account.email}"
+  ]
+}
+
 
 resource "google_service_account" "ops_agent" {
   account_id   = var.ops_agent_account_id
@@ -288,6 +355,27 @@ resource "google_project_iam_binding" "monitoring_metric_writer" {
   depends_on = [google_service_account.ops_agent]
 }
 
+resource "google_project_iam_binding" "network-admin" {
+  project = var.project_id
+  role    = var.network_admin_role
+
+  depends_on = [google_service_account.ops_agent]
+
+  members = [
+    "serviceAccount:${google_service_account.ops_agent.email} "
+  ]
+}
+
+resource "google_project_iam_binding" "security-admin" {
+  project    = var.project_id
+  role       = var.security_admin_role
+  depends_on = [google_service_account.ops_agent]
+
+  members = [
+    "serviceAccount:${google_service_account.ops_agent.email}"
+  ]
+
+}
 
 resource "google_project_iam_binding" "ops-agent-publisher" {
   project    = var.project_id
@@ -302,15 +390,44 @@ resource "google_project_iam_binding" "ops-agent-publisher" {
 
 }
 
+resource "google_compute_health_check" "health-check" {
+  name                = var.health_check_name
+  timeout_sec         = var.health_check_timeout_sec
+  check_interval_sec  = var.health_check_check_interval_sec
+  healthy_threshold   = var.health_check_healthy_threshold
+  unhealthy_threshold = var.health_check_unhealthy_threshold
 
+  http_health_check {
+    request_path = var.health_check_request_path
+    port         = var.health_check_port
+  }
+}
+
+
+resource "google_compute_region_autoscaler" "auto-scaler" {
+  name   = var.autoscaler_name
+  region = var.region
+  target = google_compute_region_instance_group_manager.instance-group-manager.id
+  autoscaling_policy {
+    max_replicas    = var.autoscaler_max_replicas
+    min_replicas    = var.autoscaler_min_replicas
+    cooldown_period = var.autoscaler_cooldown_period
+
+    cpu_utilization {
+      target = var.autoscaler_cpu_target
+    }
+  }
+  depends_on = [google_compute_region_instance_group_manager.instance-group-manager]
+
+}
 resource "google_dns_record_set" "myrecord" {
   name         = var.record_name
   type         = var.record_type
   ttl          = var.record_ttl
   managed_zone = var.record_managed_zone
-  rrdatas      = [google_compute_instance.default.network_interface.0.access_config.0.nat_ip]
+  rrdatas      = [google_compute_global_forwarding_rule.global-forwarding-rule.ip_address]
+  depends_on   = [google_compute_global_forwarding_rule.global-forwarding-rule]
 }
-
 
 resource "google_sql_user" "user" {
   name     = var.sql_user_name
@@ -343,6 +460,21 @@ resource "google_vpc_access_connector" "vpc_connector" {
   ip_cidr_range = var.vpc_connector_ip_cidr_range
   network       = var.name
   machine_type  = var.vpc_connector_machine_type
-  depends_on    = [google_compute_instance.default]
+  depends_on    = [google_compute_network.vpc]
 }
+
+# resource "google_compute_ssl_certificate" "ssl-certificate" {
+#   name ="google_compute_ssl_certificate"
+#   project = var.project_id
+#   description = "Google Compute SSL Certificate"
+#   private_key = ""
+#   certificate = ""
+# }
+resource "google_compute_managed_ssl_certificate" "ssl-certificate" {
+  name = var.ssl_certificate_name
+  managed {
+    domains = var.ssl_certificate_domains
+  }
+}
+
 
