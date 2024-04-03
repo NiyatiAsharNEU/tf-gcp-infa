@@ -69,7 +69,7 @@ resource "google_sql_database_instance" "db-instance" {
     disk_autoresize             = var.disk_autoresize
     deletion_protection_enabled = var.db_instance_deletion_protection_enabled
     database_flags {
-      name  = var.database_flags
+      name  = var.database_flags_name
       value = var.database_flags_value
     }
 
@@ -228,7 +228,7 @@ resource "google_compute_url_map" "url-map" {
 resource "google_compute_target_https_proxy" "target-https-proxy" {
   name             = var.target_https_proxy_name
   url_map          = google_compute_url_map.url-map.id
-  ssl_certificates = [google_compute_managed_ssl_certificate.ssl-certificate.id]
+  ssl_certificates = [google_compute_managed_ssl_certificate.ssl_certificate.id]
 
 }
 
@@ -463,14 +463,8 @@ resource "google_vpc_access_connector" "vpc_connector" {
   depends_on    = [google_compute_network.vpc]
 }
 
-# resource "google_compute_ssl_certificate" "ssl-certificate" {
-#   name ="google_compute_ssl_certificate"
-#   project = var.project_id
-#   description = "Google Compute SSL Certificate"
-#   private_key = ""
-#   certificate = ""
-# }
-resource "google_compute_managed_ssl_certificate" "ssl-certificate" {
+
+resource "google_compute_managed_ssl_certificate" "ssl_certificate" {
   name = var.ssl_certificate_name
   managed {
     domains = var.ssl_certificate_domains

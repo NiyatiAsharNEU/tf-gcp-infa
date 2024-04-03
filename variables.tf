@@ -468,7 +468,7 @@ variable "db_instance_deletion_protection" {
 
 }
 
-variable "database_flags" {
+variable "database_flags_name" {
 
 }
 
