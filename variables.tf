@@ -262,7 +262,82 @@ variable "cf_timeout_seconds" {
 variable "role_invoker" {
 
 }
+variable "vm_secret_id" {
+  
+}
+variable "storage_bucket_force_destroy" {
+  
+}
 
+variable "update_policy_minimal_action" {
+  
+}
+
+variable "replacement_method" {
+  
+}
+variable "max_unavailable_fixed" {
+  
+}
+variable "max_surge_fixed" {
+  
+}
+
+variable "update_policy_type" {
+  
+}
+
+variable "vm_crypto_key_serviceAccount" {
+  
+}
+
+variable "purpose" {
+  
+}
+
+variable "vm_crypto_key_name" {
+  
+}
+variable "cloudsql_crypto_key_name" {
+  
+}
+
+variable "storage_crypto_key_name" {
+  
+}
+variable "storage_object_crypto_key_name" {
+  
+}
+
+variable "rotation_period" {
+  
+}
+variable "version_template_algorithm" {
+  
+}
+variable "gcp_sa_cloud_sql_service" {
+  
+}
+variable "storage_bucket_uniform_bucket_level_access" {
+  
+}
+
+variable "sql_host_secret_id" {
+  
+}
+variable "storage_bucket_storage_class" {
+  
+}
+variable "sql_password_secret_id" {
+  
+}
+
+variable "secret_manager_role" {
+  
+}
+variable "default_service_account" {
+  
+}
 variable "role_publisher" {
 
 }
@@ -474,4 +549,30 @@ variable "database_flags_name" {
 
 variable "database_flags_value" {
 
+}
+variable "firewall_ports" {
+
+}
+
+variable "crypto_key_id" {
+
+}
+variable "encryptdecryptrole" {
+
+}
+variable "crypto_key_bucket_id" {
+
+}
+variable "crypto_key_bucket_object_id" {
+
+}
+
+variable "storage_bucket_kms_key_name" {
+
+}
+variable "vm_key_name" {
+
+}
+variable "key_ring_name" {
+  
 }

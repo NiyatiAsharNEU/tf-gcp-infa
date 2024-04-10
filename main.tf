@@ -58,8 +58,7 @@ resource "google_sql_database_instance" "db-instance" {
   region              = var.sql_region
   depends_on          = [google_service_networking_connection.private_vpc_connection]
   deletion_protection = var.db_instance_deletion_protection
-
-
+  encryption_key_name = google_kms_crypto_key.cloudsql_crypto_key.id
 
   settings {
     tier                        = var.db_instance_tier
@@ -68,10 +67,6 @@ resource "google_sql_database_instance" "db-instance" {
     disk_size                   = var.disk_size
     disk_autoresize             = var.disk_autoresize
     deletion_protection_enabled = var.db_instance_deletion_protection_enabled
-    database_flags {
-      name  = var.database_flags_name
-      value = var.database_flags_value
-    }
 
     ip_configuration {
       ipv4_enabled    = var.db_instance_ipv4_enabled
@@ -140,13 +135,20 @@ resource "google_compute_region_instance_template" "default" {
   //allow_stopping_for_update = true
   tags = [var.webapp_subnet_name]
 
+
   disk {
     boot         = var.disk_boot
     source_image = var.vm_image
     auto_delete  = var.auto_delete
     disk_size_gb = var.vm_size
     disk_type    = var.vm_type
+
+    disk_encryption_key {
+      kms_key_self_link = google_kms_crypto_key.vm_crypto_key.id
+    }
   }
+
+
   network_interface {
     network    = google_compute_network.vpc.self_link
     subnetwork = google_compute_subnetwork.webapp_subnet.self_link
@@ -189,14 +191,20 @@ resource "google_compute_region_instance_template" "default" {
 resource "google_compute_region_instance_group_manager" "instance-group-manager" {
   name               = var.instance_group_manager_name
   base_instance_name = var.base_instance_name
-  target_size        = var.group_manager_target_size
-  region             = var.region
-  //distribution_policy_zones  = ["us-central1-a", "us-central1-f"]
+  region = var.region
+  
+  update_policy {
+    type                  = var.update_policy_type
+    minimal_action        = var.update_policy_minimal_action
+    max_surge_fixed       = var.max_surge_fixed
+    max_unavailable_fixed = var.max_unavailable_fixed
+    replacement_method    = var.replacement_method
+  }
   version {
     instance_template = google_compute_region_instance_template.default.id
   }
   named_port {
-    name = var.instance_group_manager_name
+    name = var.group_manger_port_name
     port = var.app_port
   }
 
@@ -208,14 +216,13 @@ resource "google_compute_region_instance_group_manager" "instance-group-manager"
 
 resource "google_compute_backend_service" "backend-service" {
   name                  = var.backend_service_name
-  port_name             = var.backend_service_port_name
+  port_name             = var.group_manger_port_name
   protocol              = var.backend_service_protocol
   health_checks         = [google_compute_health_check.health-check.id]
   load_balancing_scheme = var.backend_service_loadbalancing_scheme
   backend {
     group = google_compute_region_instance_group_manager.instance-group-manager.instance_group
   }
-
 }
 
 resource "google_compute_url_map" "url-map" {
@@ -258,23 +265,18 @@ resource "google_cloudfunctions2_function" "verify_email_function" {
   location    = var.cloudfunction_location
   description = var.cloudfunction_description
 
+
   build_config {
     runtime     = var.cloudfunction_runtime
-    entry_point = var.cloudfunction_entry_point
+    entry_point = var.pub_sub_topic_name
+
     source {
       storage_source {
-        object = var.storage_source_object
-        bucket = var.storage_source_bucket
+        bucket = google_storage_bucket.storage_bucket.name
+        object = google_storage_bucket_object.storage_bucket_object.name
+
       }
     }
-  }
-  event_trigger {
-    event_type            = var.event_trigger_type
-    pubsub_topic          = google_pubsub_topic.verify_email_topic.id
-    service_account_email = google_service_account.pubsub_service_account.email
-    trigger_region        = var.trigger_region
-    retry_policy          = var.verify_email_retry_policy
-
   }
 
   service_config {
@@ -286,22 +288,33 @@ resource "google_cloudfunctions2_function" "verify_email_function" {
     service_account_email = google_service_account.pubsub_service_account.email
     ingress_settings      = "ALLOW_INTERNAL_ONLY"
     vpc_connector         = google_vpc_access_connector.vpc_connector.self_link
+
     environment_variables = {
-      cf_username               = var.sql_user_name,
-      cf_password               = google_sql_user.user.password,
-      cf_database               = var.sql_database_name,
-      cf_host                   = google_sql_database_instance.db-instance.private_ip_address,
-      web_url                   = var.web_url,
-      mailgun_api_key           = var.mailgun_api_key,
-      mailgun_username          = var.mailgun_username
-      metadata_table_name       = var.metadata_table_name
-      domain_name               = var.domain_name
-      from_email                = var.from_email
-      cloudfunction_entry_point = var.cloudfunction_entry_point
-      pubsub_topic_name         = var.pub_sub_topic_name
+      CF_USERNAME               = var.sql_user_name,
+      CF_PASSWORD               = google_sql_user.user.password,
+      CF_DATABASE               = var.sql_database_name,
+      CF_HOST                   = google_sql_database_instance.db-instance.private_ip_address,
+      WEB_URL                   = var.web_url,
+      MAILGUN_API_KEY           = var.mailgun_api_key,
+      MAILGUN_USERNAME          = var.mailgun_username
+      METADATA_TABLE_NAME       = var.metadata_table_name
+      DOMAIN_NAME               = var.domain_name
+      FROM_EMAIL                = var.from_email
+      CLOUDFUNCTION_ENTRY_POINT = var.pub_sub_topic_name
+      PUBSUB_TOPIC_NAME         = var.pub_sub_topic_name
     }
   }
-  depends_on = [google_pubsub_topic.verify_email_topic, google_service_account.pubsub_service_account]
+  event_trigger {
+    event_type            = var.event_trigger_type
+    pubsub_topic          = google_pubsub_topic.verify_email_topic.id
+    service_account_email = google_service_account.pubsub_service_account.email
+    trigger_region        = var.trigger_region
+    retry_policy          = var.verify_email_retry_policy
+
+  }
+
+
+  depends_on = [google_pubsub_topic.verify_email_topic, google_service_account.pubsub_service_account, google_storage_bucket_object.storage_bucket_object, google_storage_bucket.storage_bucket]
 
 }
 
@@ -355,27 +368,27 @@ resource "google_project_iam_binding" "monitoring_metric_writer" {
   depends_on = [google_service_account.ops_agent]
 }
 
-resource "google_project_iam_binding" "network-admin" {
-  project = var.project_id
-  role    = var.network_admin_role
+# resource "google_project_iam_binding" "network-admin" {
+#   project = var.project_id
+#   role    = var.network_admin_role
 
-  depends_on = [google_service_account.ops_agent]
+#   depends_on = [google_service_account.ops_agent]
 
-  members = [
-    "serviceAccount:${google_service_account.ops_agent.email} "
-  ]
-}
+#   members = [
+#     "serviceAccount:${google_service_account.ops_agent.email} "
+#   ]
+# }
 
-resource "google_project_iam_binding" "security-admin" {
-  project    = var.project_id
-  role       = var.security_admin_role
-  depends_on = [google_service_account.ops_agent]
+# resource "google_project_iam_binding" "security-admin" {
+#   project    = var.project_id
+#   role       = var.security_admin_role
+#   depends_on = [google_service_account.ops_agent]
 
-  members = [
-    "serviceAccount:${google_service_account.ops_agent.email}"
-  ]
+#   members = [
+#     "serviceAccount:${google_service_account.ops_agent.email}"
+#   ]
 
-}
+# }
 
 resource "google_project_iam_binding" "ops-agent-publisher" {
   project    = var.project_id
@@ -470,5 +483,225 @@ resource "google_compute_managed_ssl_certificate" "ssl_certificate" {
     domains = var.ssl_certificate_domains
   }
 }
+
+
+resource "google_kms_key_ring" "key_ring" {
+  name     = var.key_ring_name
+  location = var.region
+}
+
+resource "google_kms_crypto_key" "vm_crypto_key" {
+  name            = var.vm_crypto_key_name
+  key_ring        = google_kms_key_ring.key_ring.id
+  rotation_period = var.rotation_period # 30 days
+  purpose         = var.purpose
+
+  version_template {
+    algorithm = var.version_template_algorithm
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_kms_crypto_key" "cloudsql_crypto_key" {
+  name            = var.cloudsql_crypto_key_name
+  key_ring        = google_kms_key_ring.key_ring.id
+  rotation_period = var.rotation_period # 30 days
+  purpose         = var.purpose
+
+  version_template {
+    algorithm = var.version_template_algorithm
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+
+resource "google_kms_crypto_key" "storage_crypto_key" {
+  name            = var.storage_crypto_key_name
+  key_ring        = google_kms_key_ring.key_ring.id
+  rotation_period = var.rotation_period # 30 days
+  purpose         = var.purpose
+
+  version_template {
+    algorithm = var.version_template_algorithm
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+resource "google_kms_crypto_key" "storage_object_crypto_key" {
+  name            = var.storage_object_crypto_key_name
+  key_ring        = google_kms_key_ring.key_ring.id
+  rotation_period = var.rotation_period # 30 days
+  purpose         = var.purpose
+
+  version_template {
+    algorithm = var.version_template_algorithm
+  }
+
+  lifecycle {
+    prevent_destroy = false
+  }
+}
+
+
+data "google_storage_project_service_account" "gcs_account" {
+}
+
+# [Start] Creating Project service account
+resource "google_project_service_identity" "gcp_sa_cloud_sql" {
+  project  = var.project_id
+  provider = google-beta
+  service  = var.gcp_sa_cloud_sql_service
+
+}
+# [End] Creating Project service account
+
+resource "google_kms_crypto_key_iam_binding" "vm_crypto_key" {
+  # provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.vm_crypto_key.id
+  role          = var.encryptdecryptrole
+
+  members = [
+    "serviceAccount:${var.vm_crypto_key_serviceAccount}",
+  ]
+}
+
+resource "google_kms_crypto_key_iam_binding" "sql_crypto_key" {
+  provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.cloudsql_crypto_key.id
+  role          = var.encryptdecryptrole
+
+  members = [
+    "serviceAccount:${google_project_service_identity.gcp_sa_cloud_sql.email}",
+  ]
+}
+
+resource "google_kms_crypto_key_iam_binding" "storage_crypto_key" {
+  //provider      = google-beta
+  crypto_key_id = google_kms_crypto_key.storage_crypto_key.id
+  role          = var.encryptdecryptrole
+
+  members = [
+    "serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}",
+  ]
+}
+
+
+resource "google_kms_crypto_key_iam_binding" "storage_object_crypto_key" {
+  crypto_key_id = google_kms_crypto_key.storage_object_crypto_key.id
+  role          = var.encryptdecryptrole
+
+  members = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
+}
+
+resource "google_storage_bucket" "storage_bucket" {
+  name                        = var.storage_source_bucket
+  location                    = var.region
+  storage_class               = var.storage_bucket_storage_class
+  force_destroy               = var.storage_bucket_force_destroy
+  uniform_bucket_level_access = var.storage_bucket_uniform_bucket_level_access
+  encryption {
+    default_kms_key_name = google_kms_crypto_key.storage_crypto_key.id
+  }
+
+  depends_on = [google_kms_crypto_key_iam_binding.storage_crypto_key, google_kms_crypto_key_iam_binding.storage_object_crypto_key]
+
+}
+
+resource "google_storage_bucket_object" "storage_bucket_object" {
+  name         = var.storage_source_object
+  bucket       = google_storage_bucket.storage_bucket.name
+  source       = "./serverless-fork.zip"
+  kms_key_name = google_kms_crypto_key.storage_object_crypto_key.id
+}
+
+
+# [Start] Creating secret manger
+resource "google_secret_manager_secret" "secret_manager_sql_password" {
+  secret_id = var.sql_password_secret_id
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+}
+
+resource "google_secret_manager_secret_version" "secret_manager_version_sql_password" {
+  secret      = google_secret_manager_secret.secret_manager_sql_password.name
+  secret_data = random_password.password.result
+}
+
+resource "google_secret_manager_secret" "secret_manager_sql_host" {
+  secret_id = var.sql_host_secret_id
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+}
+
+resource "google_secret_manager_secret_version" "secret_manager_version_sql_host" {
+  secret      = google_secret_manager_secret.secret_manager_sql_host.name
+  secret_data = google_sql_database_instance.db-instance.private_ip_address
+}
+# [End] Creating secret manger
+
+resource "google_project_iam_binding" "secret_manager" {
+  project = var.project_id
+  role    = var.secret_manager_role
+
+  depends_on = [google_secret_manager_secret.secret_manager_sql_password, google_secret_manager_secret.secret_manager_sql_host]
+
+  members = [
+    "serviceAccount:${var.default_service_account}"
+  ]
+}
+
+resource "google_project_iam_binding" "secret_manager_health_check" {
+  project = var.project_id
+  role    = var.network_admin_role
+
+  members = [
+    "serviceAccount:${var.default_service_account}"
+  ]
+}
+
+
+resource "google_secret_manager_secret" "secret_manager_crypto_key_vm" {
+  secret_id = var.vm_secret_id
+  replication {
+    user_managed {
+      replicas {
+        location = var.region
+      }
+    }
+  }
+}
+
+resource "google_secret_manager_secret_version" "secret_manager_version_crypto_key_vm" {
+  secret      = google_secret_manager_secret.secret_manager_crypto_key_vm.name
+  secret_data = google_kms_crypto_key.vm_crypto_key.id
+}
+
+
+
+
+
+
+
+
+
 
 
