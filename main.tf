@@ -191,8 +191,8 @@ resource "google_compute_region_instance_template" "default" {
 resource "google_compute_region_instance_group_manager" "instance-group-manager" {
   name               = var.instance_group_manager_name
   base_instance_name = var.base_instance_name
-  region = var.region
-  
+  region             = var.region
+
   update_policy {
     type                  = var.update_policy_type
     minimal_action        = var.update_policy_minimal_action
